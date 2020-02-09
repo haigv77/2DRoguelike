@@ -1,8 +1,6 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-//The abstract keyword enables you to create classes and class members that are incomplete and must be implemented in a derived class.
 public abstract class MovingObject : MonoBehaviour
 {
     public float moveTime = 0.1f;            //Time it will take object to move, in seconds.
@@ -12,7 +10,7 @@ public abstract class MovingObject : MonoBehaviour
     private BoxCollider2D boxCollider;         //The BoxCollider2D component attached to this object.
     private Rigidbody2D rb2D;                //The Rigidbody2D component attached to this object.
     private float inverseMoveTime;            //Used to make movement more efficient.
-
+    public int oDir = 1; //right
 
     //Protected, virtual functions can be overridden by inheriting classes.
     protected virtual void Start ()
@@ -25,6 +23,8 @@ public abstract class MovingObject : MonoBehaviour
 
         //By storing the reciprocal of the move time we can use it by multiplying instead of dividing, this is more efficient.
         inverseMoveTime = 1f / moveTime;
+
+        oDir = 1;
     }
 
 
@@ -92,6 +92,15 @@ public abstract class MovingObject : MonoBehaviour
     protected virtual void AttemptMove <T> (int xDir, int yDir)
         where T : Component
     {
+        //Debug.Log(xDir + ", " + yDir);
+        if (xDir != oDir && xDir != 0)
+        {
+            oDir = xDir;
+            Vector3 newScale = transform.localScale;
+            newScale.x *= -1;
+            transform.localScale = newScale;
+        }
+
         //Hit will store whatever our linecast hits when Move is called.
         RaycastHit2D hit;
 
@@ -108,7 +117,6 @@ public abstract class MovingObject : MonoBehaviour
 
         //If canMove is false and hitComponent is not equal to null, meaning MovingObject is blocked and has hit something it can interact with.
         if(!canMove && hitComponent != null)
-
             //Call the OnCantMove function and pass it hitComponent as a parameter.
             OnCantMove (hitComponent);
     }

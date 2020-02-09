@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 //Enemy inherits from MovingObject, our base class for objects that can move, Player also inherits from this.
 public class Enemy : MovingObject
@@ -10,7 +8,8 @@ public class Enemy : MovingObject
     private Animator animator;                            //Variable of type Animator to store a reference to the enemy's Animator component.
     private Transform target;                            //Transform to attempt to move toward each turn.
     private bool skipMove;                                //Boolean to determine whether or not enemy should skip a turn or move this turn.
-
+    public AudioClip enemyAttack1;
+    public AudioClip enemyAttack2;
 
     //Start overrides the virtual Start function of the base class.
     protected override void Start ()
@@ -27,6 +26,8 @@ public class Enemy : MovingObject
 
         //Call the start function of our base class MovingObject.
         base.Start ();
+
+        base.oDir = -1;
     }
 
 
@@ -60,8 +61,10 @@ public class Enemy : MovingObject
 
         //If the difference in positions is approximately zero (Epsilon) do the following:
         if(Mathf.Abs (target.position.x - transform.position.x) < float.Epsilon)
+
             //If the y coordinate of the target's (player) position is greater than the y coordinate of this enemy's position set y direction 1 (to move up). If not, set it to -1 (to move down).
             yDir = target.position.y > transform.position.y ? 1 : -1;
+
         //If the difference in positions is not approximately zero (Epsilon) do the following:
         else
             //Check if target x position is greater than enemy's x position, if so set x direction to 1 (move right), if not set to -1 (move left).
@@ -79,13 +82,12 @@ public class Enemy : MovingObject
         //Declare hitPlayer and set it to equal the encountered component.
         Player hitPlayer = component as Player;
 
-        animator.SetTrigger("enemyAttack");
-
         //Call the LoseFood function of hitPlayer passing it playerDamage, the amount of foodpoints to be subtracted.
         hitPlayer.LoseFood (playerDamage);
 
         //Set the attack trigger of animator to trigger Enemy attack animation.
         animator.SetTrigger ("enemyAttack");
 
+        SoundManager.instance.RandomizeSfx(enemyAttack1, enemyAttack2);
     }
 }

@@ -1,25 +1,29 @@
-﻿using UnityEngine;
-using System.Collections;
-using System.Collections.Generic;        //Allows us to use Lists. 
-using UnityEngine.UI;                    //Allows us to use UI.
-using Completed;
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
-    public float levelStartDelay = 2f;                        //Time to wait before starting level, in seconds.
-    public float turnDelay = 0.1f;                            //Delay between each Player turn.
-    public int playerFoodPoints = 100;                        //Starting value for Player food points.
+    public float levelStartDelay = 2f;
+    public float turnDelay = .1f;
     public static GameManager instance = null;                //Static instance of GameManager which allows it to be accessed by any other script.
-    [HideInInspector] public bool playersTurn = true;        //Boolean to check if it's players turn, hidden in inspector but public.
-
-
-    private Text levelText;                                    //Text to display current level number.
-    private GameObject levelImage;                            //Image to block out level as levels are being set up, background for levelText.
     private BoardManager boardScript;                        //Store a reference to our BoardManager which will set up the level.
-    private int level = 1;                                    //Current level number, expressed in game as "Day 1".
-    private List<Enemy> enemies;                            //List of all Enemy units, used to issue them move commands.
-    private bool enemiesMoving;                                //Boolean to check if enemies are moving.
-    private bool doingSetup = true;                            //Boolean to check if we're setting up board, prevent Player from moving during setup.
+    public int playerFoodPoints = 100;
+    [HideInInspector] public bool playersTurn = true;
+
+    public static int highscore;
+
+    private Text levelText;
+    private Text highScoreText;
+    private Button retryButton;
+    private GameObject levelImage;
+    public int level = 1;                                    //Current level number, expressed in game as "Day 1".
+    private List<Enemy> enemies;
+    private bool enemiesMoving;
+    private bool doingSetUp;
+    private bool wasRestarted = false;
 
     //Awake is always called before any Start functions
     void Awake()
@@ -37,7 +41,6 @@ public class GameManager : MonoBehaviour
         //Sets this to not be destroyed when reloading scene
         DontDestroyOnLoad(gameObject);
 
-        //Assign enemies to a new List of Enemy objects.
         enemies = new List<Enemy>();
 
         //Get a component reference to the attached BoardManager script
@@ -47,60 +50,129 @@ public class GameManager : MonoBehaviour
         InitGame();
     }
 
-    //This is called each time a scene is loaded.
-    void OnLevelWasLoaded(int index)
+    public void RestartGame()
     {
-        //Add one to our level number.
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+
+        if (!SoundManager.instance.musicSource.isPlaying)
+            SoundManager.instance.musicSource.Play();
+
+        wasRestarted = true;
+    }
+
+    private void OnLevelWasLoaded(int index)
+    {
+        enabled = true;
+
+        if (wasRestarted)
+        {
+            level = 0;
+            playerFoodPoints = 100;
+            playersTurn = true;
+
+            wasRestarted = false;
+        }
+
         level++;
-        //Call InitGame to initialize our level.
+
         InitGame();
     }
+
+    //void OnEnable()
+    //{
+    //    //Tell our 'OnLevelFinishedLoading' function to start listening for a scene change as soon as this script is enabled.
+    //    SceneManager.sceneLoaded += OnSceneLoaded;
+    //}
+
+    //void OnDisable()
+    //{
+    //    //Tell our 'OnLevelFinishedLoading' function to stop listening for a scene change as soon as this script is disabled. Remember to always have an unsubscription for every delegate you subscribe to!
+    //    SceneManager.sceneLoaded -= OnSceneLoaded;
+    //}
+
+    //private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    //{
+    //    level++;
+
+    //    InitGame();
+    //}
 
     //Initializes the game for each level.
     void InitGame()
     {
-        //While doingSetup is true the player can't move, prevent player from moving while title card is up.
-        doingSetup = true;
+        doingSetUp = true;
 
-        //Get a reference to our image LevelImage by finding it by name.
-        levelImage = GameObject.Find("LevelImage");
+        highscore = (int) PlayerPrefs.GetFloat("High Score", 0);
 
-        //Get a reference to our text LevelText's text component by finding it by name and calling GetComponent.
-        levelText = GameObject.Find("LevelText").GetComponent<Text>();
+        if (!levelImage)
+        {
+            levelImage = GameObject.Find("LevelImage");
+        }
 
-        //Set the text of levelText to the string "Day" and append the current level number.
+        if (!levelText)
+        {
+            levelText = GameObject.Find("LevelText").GetComponent<Text>();
+        }
         levelText.text = "Day " + level;
 
-        //Set levelImage to active blocking player's view of the game board during setup.
+        if (!highScoreText)
+        {
+            highScoreText = GameObject.Find("HighScoreText").GetComponent<Text>();
+        }
+        highScoreText.text = "";
+
+        if (!retryButton)
+        {
+            retryButton = GameObject.Find("RetryButton").GetComponent<Button>();
+            retryButton.onClick.AddListener(() => RestartGame());
+        }
+        
+        retryButton.gameObject.SetActive(false);
+
         levelImage.SetActive(true);
 
-        //Call the HideLevelImage function with a delay in seconds of levelStartDelay.
         Invoke("HideLevelImage", levelStartDelay);
 
-        //Clear any Enemy objects in our List to prepare for next level.
         enemies.Clear();
 
         //Call the SetupScene function of the BoardManager script, pass it current level number.
         boardScript.SetupScene(level);
-
     }
 
-
-    //Hides black image used between levels
-    void HideLevelImage()
+    private void HideLevelImage() 
     {
-        //Disable the levelImage gameObject.
         levelImage.SetActive(false);
-
-        //Set doingSetup to false allowing player to move again.
-        doingSetup = false;
+        doingSetUp = false;
     }
 
-    //Update is called every frame.
+    public void GameOver()
+    {
+        levelText.text = "After " + level + " days, you starved.";
+
+        if (level > highscore)
+        {
+            highscore = level;
+            //You need this to save high score across game sessions
+            PlayerPrefs.SetFloat("High Score", level);
+
+            highScoreText.text = "New high score\n" + highscore + " days";
+        }
+        else
+        {
+            highScoreText.text = "High score\n" + highscore + " days";
+        }
+
+        retryButton.gameObject.SetActive(true);
+
+        levelImage.SetActive(true);
+        enabled = false;
+    }
+
+    // Update is called once per frame
     void Update()
     {
         //Check that playersTurn or enemiesMoving or doingSetup are not currently true.
-        if(playersTurn || enemiesMoving || doingSetup)
+        if (playersTurn || enemiesMoving || doingSetUp)
             //If any of these are true, return and do not start MoveEnemies.
             return;
 
@@ -113,20 +185,6 @@ public class GameManager : MonoBehaviour
     {
         //Add Enemy to List enemies.
         enemies.Add(script);
-    }
-
-
-    //GameOver is called when the player reaches 0 food points
-    public void GameOver()
-    {
-        //Set levelText to display number of levels passed and game over message
-        levelText.text = "After " + level + " days, you starved.";
-
-        //Enable black background image gameObject.
-        levelImage.SetActive(true);
-
-        //Disable this GameManager.
-        enabled = false;
     }
 
     //Coroutine to move enemies in sequence.
@@ -156,7 +214,7 @@ public class GameManager : MonoBehaviour
         }
         //Once Enemies are done moving, set playersTurn to true so player can move.
         playersTurn = true;
-
+        
         //Enemies are done moving, set enemiesMoving to false.
         enemiesMoving = false;
     }
